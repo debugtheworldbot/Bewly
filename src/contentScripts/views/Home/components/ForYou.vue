@@ -9,7 +9,8 @@ import type { GridLayoutType } from '~/logic'
 import { accessKey, settings } from '~/logic'
 import type { AppForYouResult, Item as AppVideoItem } from '~/models/video/appForYou'
 import { Type as ThreePointV2Type } from '~/models/video/appForYou'
-import type { forYouResult, Item as VideoItem } from '~/models/video/forYou'
+import type { Item as VideoItem } from '~/models/video/forYou'
+import { getRecommendVideosInPageContext } from '~/models/video/forYou'
 import api from '~/utils/api'
 import { TVAppKey } from '~/utils/authProvider'
 import { isVerticalVideo } from '~/utils/uriParse'
@@ -113,6 +114,9 @@ onActivated(() => {
 })
 
 async function initData() {
+  noMoreContent.value = false
+  needToLoginFirst.value = false
+  refreshIdx.value = 1
   videoList.value.length = 0
   appVideoList.value.length = 0
   await getData()
@@ -167,12 +171,12 @@ async function getRecommendVideos() {
       videoList.value.push(...pendingVideos)
     }
 
-    const response: forYouResult = await api.video.getRecommendVideos({
+    const response = await getRecommendVideosInPageContext({
       fresh_idx: refreshIdx.value++,
       ps: PAGE_SIZE,
     })
 
-    if (!response.data) {
+    if (response.code === 0 && !response.data?.item?.length) {
       noMoreContent.value = true
       return
     }
@@ -225,7 +229,7 @@ async function getRecommendVideos() {
     const filledItems = videoList.value.filter(video => video.item)
     videoList.value = filledItems
 
-    if (!needToLoginFirst.value) {
+    if (!needToLoginFirst.value && !noMoreContent.value) {
       await nextTick()
       if (!await haveScrollbar() || filledItems.length < PAGE_SIZE || filledItems.length < 1) {
         getRecommendVideos()
